@@ -42,7 +42,7 @@ These FP8 models allow GPUs with 12GB VRAM (like RTX 3060) to run the complete w
 
 1. **n8n** installed and running (self-hosted or cloud)
 2. **ComfyUI** configured and running with:
-   - Flux models (FP8) - See [ComfyUI Flux & WAN 2.2 Setup on vast.ai](https://github.com/YOUR_USERNAME/comfyui-flux-wan-vast-ai) for installation instructions
+   - Flux models (FP8) - See [ComfyUI Flux & WAN 2.2 Setup on vast.ai](https://github.com/enemy100/comfyui-flux-wan-vast-ai) for installation instructions
    - WAN 2.2 models
    - Required custom nodes
 3. **Configured credentials**:
@@ -57,7 +57,7 @@ These FP8 models allow GPUs with 12GB VRAM (like RTX 3060) to run the complete w
 Before using this workflow, you need to set up ComfyUI with Flux and WAN 2.2 models. We provide automated installation scripts:
 
 **Option A: Using vast.ai (Recommended)**
-- See the [ComfyUI Flux & WAN 2.2 Setup on vast.ai](https://github.com/YOUR_USERNAME/comfyui-flux-wan-vast-ai) repository for complete installation instructions
+- See the [ComfyUI Flux & WAN 2.2 Setup on vast.ai](https://github.com/enemy100/comfyui-flux-wan-vast-ai) repository for complete installation instructions
 - This repository includes automated scripts to install all required models and dependencies
 
 **Option B: Manual Installation**
@@ -68,7 +68,7 @@ Before using this workflow, you need to set up ComfyUI with Flux and WAN 2.2 mod
 
 After ComfyUI is set up, configure the integration between n8n and your ComfyUI instance:
 
-- See the [n8n ComfyUI Integration Guide](https://github.com/YOUR_USERNAME/n8n-comfyui-integration) repository
+- See the [n8n ComfyUI Integration Guide](https://github.com/enemy100/n8n-comfyui-integration) repository
 - This guide covers:
   - Setting up n8n to connect to ComfyUI on vast.ai
   - Configuring network access (tunnels, ports, etc.)
@@ -201,7 +201,7 @@ In the **"Initialize Polling"** node, you can adjust:
 - Check n8n logs
 
 ### Error generating images
-- Check if Flux models are installed (see [ComfyUI Flux & WAN 2.2 Setup](https://github.com/YOUR_USERNAME/comfyui-flux-wan-vast-ai))
+- Check if Flux models are installed (see [ComfyUI Flux & WAN 2.2 Setup](https://github.com/enemy100/comfyui-flux-wan-vast-ai))
 - Check if there's enough disk space
 - Check if GPU has enough VRAM
 
@@ -231,12 +231,12 @@ In the **"Initialize Polling"** node, you can adjust:
 
 This workflow is part of a complete video generation setup. Check out these related repositories:
 
-1. **[ComfyUI Flux & WAN 2.2 Setup on vast.ai](https://github.com/YOUR_USERNAME/comfyui-flux-wan-vast-ai)**
+1. **[ComfyUI Flux & WAN 2.2 Setup on vast.ai](https://github.com/enemy100/comfyui-flux-wan-vast-ai)**
    - Automated installation scripts for Flux and WAN 2.2 models
    - ComfyUI setup on vast.ai instances
    - Model download and configuration
 
-2. **[n8n ComfyUI Integration Guide](https://github.com/YOUR_USERNAME/n8n-comfyui-integration)**
+2. **[n8n ComfyUI Integration Guide](https://github.com/enemy100/n8n-comfyui-integration)**
    - Step-by-step guide to connect n8n with ComfyUI on vast.ai
    - Network configuration and tunneling
    - Workflow execution setup
