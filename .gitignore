@@ -1,0 +1,34 @@
+# n8n credentials and sensitive data
+*.env
+.env.local
+.env.*.local
+credentials.json
+*.key
+*.pem
+
+# n8n workflow backups
+*.backup
+*.bak
+
+# Logs
+*.log
+logs/
+n8n-logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+

@@ -1,0 +1,803 @@
+{
+  "name": "ComfyUI Prompt to Video (2 Images + Wan 2.2)",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "755d0af7-291f-4842-b3c5-365623d5f085",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -2464,
+        -144
+      ],
+      "webhookId": "YOUR_WEBHOOK_ID_HERE"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "=You are a professional video prompt generator specialized in first-frame to last-frame video models such as WAN 2.2.\nYour ONLY job is to create TWO sequential image prompts based EXACTLY on what the user requests.\n\nCRITICAL RULES — FOLLOW ALL OF THEM STRICTLY:\n\nNEVER change, modify, or ignore ANY part of the user's request.\n\nIf the user mentions specific characters, you MUST include them EXACTLY as written.\n\nIf the user mentions specific locations, you MUST include them EXACTLY as written.\n\nIf the user mentions specific actions, you MUST include them EXACTLY as written.\n\nIf the user mentions mood or style (like “dinâmico”, “emoção”, “fast transitions”), you MUST reflect that in BOTH prompts.\n\nRULES SPECIFICALLY FOR WAN 2.2 (VERY IMPORTANT):\n\nBoth prompts MUST maintain the same art style, same lighting, same environment, same color palette, and same visual continuity.\n\nThe second frame must be a natural continuation of the first — NO drastic pose changes, NO scene jumps, NO style shifts.\n\nKeep differences small but meaningful: more intensity, closer angle, progression of motion.\n\nNo scene cuts, no camera swaps that break continuity.\n\nNO explanations, NO commentary. Only output the prompts.\n\nOUTPUT FORMAT — MANDATORY:\n\nYour response must be ONLY two prompts separated by \"|||\".\n\nFirst prompt → START of scene (wide shot, beginning of action)\n\nSecond prompt → CLIMAX (medium or slightly closer shot, continuation of the same action)\n\nEXAMPLE (do NOT alter template):\n\nUser: “Crie um vídeo onde o Papa Leguas está correndo do Sonic no meio de Las Vegas, Nevada. O vídeo deve ser dinâmico e com transições bem rápidas. o video deve ter emocao”\n\nOutput:\n“Papa Leguas running away from Sonic in the middle of Las Vegas, Nevada, wide shot, beginning of chase, neon lights, casino signs, dynamic action, fast movement, emotional intensity, consistent lighting and style ||| Papa Leguas sprinting as Sonic gets closer, medium shot, continuation of action, same neon lights and casinos, same night atmosphere, fast transitions, high emotion, same art style and colors”"
+        }
+      },
+      "id": "8b1e2e30-7f98-486a-aa1c-d1e3a532e54b",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -2144,
+        -144
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "8a639062-b077-4c93-8855-890a9761c6f8",
+      "name": "Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -1872,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst output = item.json.output || '';\n\n// Capturar o prompt original do usuário para usar como fallback\nconst userMessage = $('When chat message received').first()?.json?.message || $('AI Agent').first()?.json?.input || '';\n\nconsole.log('\\n========================================');\nconsole.log('=== SPLIT PROMPTS - DEBUG ===');\nconsole.log('========================================');\nconsole.log('Mensagem original do usuário:', userMessage);\nconsole.log('Output do AI Agent:', output);\nconsole.log('========================================\\n');\n\n// Separar os dois prompts\nconst prompts = output.split('|||').map(p => p.trim()).filter(p => p);\n\nconsole.log('Prompts após split:');\nprompts.forEach((p, i) => console.log(`  Prompt ${i + 1}: ${p}`));\n\nif (prompts.length < 2) {\n  // Se não tiver 2 prompts, usar o prompt original do usuário ou o output do AI\n  const basePrompt = prompts[0] || output || userMessage;\n  \n  if (!basePrompt || basePrompt.trim() === '') {\n    throw new Error('Não foi possível obter o prompt. Verifique se o AI Agent retornou um prompt válido.');\n  }\n  \n  return [{\n    json: {\n      promptStart: basePrompt + ', wide shot, beginning of the scene, initial moment, starting position, first frame',\n      promptEnd: basePrompt + ', close-up, end of the scene, final moment, ending position, last frame'\n    }\n  }];\n}\n\n// Se tiver 2 prompts, garantir que sejam sequenciais\nreturn [{\n  json: {\n    promptStart: prompts[0] + ', beginning, initial moment, first frame',\n    promptEnd: prompts[1] + ', ending, final moment, last frame'\n  }\n}];"
+      },
+      "id": "1bc9c7a8-ab46-4c6b-b0d5-3fe2be572f08",
+      "name": "Split Prompts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1824,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "comfy-base-url",
+              "name": "comfyBaseUrl",
+              "value": "YOUR_COMFYUI_URL_HERE",
+              "type": "string"
+            },
+            {
+              "id": "comfy-api-token",
+              "name": "comfyApiToken",
+              "value": "YOUR_COMFYUI_API_TOKEN_HERE",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f59f81a3-abe9-43a1-ae47-193603594056",
+      "name": "Set ComfyUI URL",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1616,
+        -144
+      ],
+      "notes": "Configure a URL e o Token do ComfyUI aqui. Copie os valores das credenciais do nó ComfyUI."
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\n\n// Capturar o prompt original do usuário como fallback\nconst userMessage = $('When chat message received').first()?.json?.message || $('AI Agent').first()?.json?.input || '';\nlet prompt = item.json.promptStart || userMessage;\n\n// Limpar o prompt - remover tags de reasoning do AI Agent se existirem\nprompt = prompt.replace(/<think>[\\s\\S]*?<\\/think>/gi, '').replace(/<think>[\\s\\S]*?<\\/redacted_reasoning>/gi, '').trim();\n\n// Se ainda não tiver prompt, usar o prompt original do usuário\nif (!prompt || prompt.trim() === '') {\n  prompt = userMessage || 'A dynamic scene';\n  console.warn('Aviso: Usando prompt original do usuário como fallback:', prompt);\n}\n\n// Construir workflow JSON de forma segura (SEM LoRA - removido porque não está instalado)\nconst workflow = {\n  \"6\": {\n    \"inputs\": {\n      \"text\": prompt,\n      \"clip\": [\"11\", 0]\n    },\n    \"class_type\": \"CLIPTextEncode\",\n    \"_meta\": { \"title\": \"CLIP Text Encode (Prompt)\" }\n  },\n  \"8\": {\n    \"inputs\": {\n      \"samples\": [\"13\", 0],\n      \"vae\": [\"10\", 0]\n    },\n    \"class_type\": \"VAEDecode\",\n    \"_meta\": { \"title\": \"VAE Decode\" }\n  },\n  \"10\": {\n    \"inputs\": {\n      \"vae_name\": \"ae.safetensors\"\n    },\n    \"class_type\": \"VAELoader\",\n    \"_meta\": { \"title\": \"Load VAE\" }\n  },\n  \"11\": {\n    \"inputs\": {\n      \"clip_name1\": \"clip_l.safetensors\",\n      \"clip_name2\": \"t5xxl_fp8_e4m3fn_scaled.safetensors\",\n      \"type\": \"flux\",\n      \"device\": \"default\"\n    },\n    \"class_type\": \"DualCLIPLoader\",\n    \"_meta\": { \"title\": \"DualCLIPLoader\" }\n  },\n  \"12\": {\n    \"inputs\": {\n      \"unet_name\": \"flux1-krea-dev_fp8_scaled.safetensors\",\n      \"weight_dtype\": \"default\"\n    },\n    \"class_type\": \"UNETLoader\",\n    \"_meta\": { \"title\": \"Load Diffusion Model\" }\n  },\n  \"13\": {\n    \"inputs\": {\n      \"seed\": 12345,\n      \"steps\": 25,\n      \"cfg\": 1,\n      \"sampler_name\": \"euler\",\n      \"scheduler\": \"simple\",\n      \"denoise\": 1,\n      \"model\": [\"12\", 0],\n      \"positive\": [\"6\", 0],\n      \"negative\": [\"42\", 0],\n      \"latent_image\": [\"36\", 0]\n    },\n    \"class_type\": \"KSampler\",\n    \"_meta\": { \"title\": \"KSampler\" }\n  },\n  \"26\": {\n    \"inputs\": {\n      \"images\": [\"8\", 0]\n    },\n    \"class_type\": \"PreviewImage\",\n    \"_meta\": { \"title\": \"Preview Image\" }\n  },\n  \"36\": {\n    \"inputs\": {\n      \"width\": 832,\n      \"height\": 480,\n      \"batch_size\": 1\n    },\n    \"class_type\": \"EmptySD3LatentImage\",\n    \"_meta\": { \"title\": \"EmptySD3LatentImage\" }\n  },\n  \"42\": {\n    \"inputs\": {\n      \"conditioning\": [\"6\", 0]\n    },\n    \"class_type\": \"ConditioningZeroOut\",\n    \"_meta\": { \"title\": \"ConditioningZeroOut\" }\n  }\n};\n\n// Retornar workflow como string JSON - o nó ComfyUI nativo espera string (como no demo)\nreturn [{ json: { workflow: JSON.stringify(workflow) } }];"
+      },
+      "id": "f2d79e42-bf57-4b3a-8e95-63ef29cbd333",
+      "name": "Build Workflow Image 1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "workflow": "={{ $json.workflow }}",
+        "outputFormat": "png",
+        "timeout": 300
+      },
+      "id": "bbc846f1-f31c-496b-be59-d0f6c17f1309",
+      "name": "ComfyUI",
+      "type": "n8n-nodes-comfyui.comfyui",
+      "typeVersion": 1,
+      "position": [
+        -736,
+        -256
+      ],
+      "credentials": {
+        "comfyUIApi": {
+          "id": "YOUR_COMFYUI_CREDENTIAL_ID",
+          "name": "ComfyUI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\n\nconsole.log('=== BUILD WORKFLOW IMAGE 2 ===');\nconsole.log('Item recebido:', JSON.stringify(item.json, null, 2));\n\nconst userMessage = $('When chat message received').first()?.json?.message || $('AI Agent').first()?.json?.input || '';\nlet prompt = item.json.promptEnd || userMessage;\n\nconsole.log('Prompt End:', prompt);\nconsole.log('User Message (fallback):', userMessage);\n\nprompt = prompt.replace(/<think>[\\s\\S]*?<\\/think>/gi, '').replace(/<think>[\\s\\S]*?<\\/redacted_reasoning>/gi, '').trim();\n\nif (!prompt || prompt.trim() === '') {\n  prompt = userMessage || 'A dynamic scene';\n  console.warn('AVISO: Usando fallback. Prompt final:', prompt);\n}\n\nconsole.log('Prompt FINAL para imagem 2:', prompt);\n\n// Construir workflow JSON de forma segura\nconst workflow = {\n  \"6\": {\n    \"inputs\": {\n      \"text\": prompt,\n      \"clip\": [\"11\", 0]\n    },\n    \"class_type\": \"CLIPTextEncode\",\n    \"_meta\": { \"title\": \"CLIP Text Encode (Prompt)\" }\n  },\n  \"8\": {\n    \"inputs\": {\n      \"samples\": [\"13\", 0],\n      \"vae\": [\"10\", 0]\n    },\n    \"class_type\": \"VAEDecode\",\n    \"_meta\": { \"title\": \"VAE Decode\" }\n  },\n  \"10\": {\n    \"inputs\": {\n      \"vae_name\": \"ae.safetensors\"\n    },\n    \"class_type\": \"VAELoader\",\n    \"_meta\": { \"title\": \"Load VAE\" }\n  },\n  \"11\": {\n    \"inputs\": {\n      \"clip_name1\": \"clip_l.safetensors\",\n      \"clip_name2\": \"t5xxl_fp8_e4m3fn_scaled.safetensors\",\n      \"type\": \"flux\",\n      \"device\": \"default\"\n    },\n    \"class_type\": \"DualCLIPLoader\",\n    \"_meta\": { \"title\": \"DualCLIPLoader\" }\n  },\n  \"12\": {\n    \"inputs\": {\n      \"unet_name\": \"flux1-krea-dev_fp8_scaled.safetensors\",\n      \"weight_dtype\": \"default\"\n    },\n    \"class_type\": \"UNETLoader\",\n    \"_meta\": { \"title\": \"Load Diffusion Model\" }\n  },\n  \"13\": {\n    \"inputs\": {\n      \"seed\": 54321,\n      \"steps\": 25,\n      \"cfg\": 1,\n      \"sampler_name\": \"euler\",\n      \"scheduler\": \"simple\",\n      \"denoise\": 1,\n      \"model\": [\"12\", 0],\n      \"positive\": [\"6\", 0],\n      \"negative\": [\"42\", 0],\n      \"latent_image\": [\"36\", 0]\n    },\n    \"class_type\": \"KSampler\",\n    \"_meta\": { \"title\": \"KSampler\" }\n  },\n  \"26\": {\n    \"inputs\": {\n      \"images\": [\"8\", 0]\n    },\n    \"class_type\": \"PreviewImage\",\n    \"_meta\": { \"title\": \"Preview Image\" }\n  },\n  \"36\": {\n    \"inputs\": {\n      \"width\": 832,\n      \"height\": 480,\n      \"batch_size\": 1\n    },\n    \"class_type\": \"EmptySD3LatentImage\",\n    \"_meta\": { \"title\": \"EmptySD3LatentImage\" }\n  },\n  \"42\": {\n    \"inputs\": {\n      \"conditioning\": [\"6\", 0]\n    },\n    \"class_type\": \"ConditioningZeroOut\",\n    \"_meta\": { \"title\": \"ConditioningZeroOut\" }\n  }\n};\n\n// Retornar workflow como string JSON - o nó ComfyUI nativo espera string (como no demo)\nreturn [{ json: { workflow: JSON.stringify(workflow) } }];"
+      },
+      "id": "8b26ff7c-04c1-4847-aba3-0dff9e805245",
+      "name": "Build Workflow Image 2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "workflow": "={{ $json.workflow }}",
+        "outputFormat": "png",
+        "timeout": 300
+      },
+      "id": "e035e567-19d8-4951-9f5a-82433c9387aa",
+      "name": "ComfyUI1",
+      "type": "n8n-nodes-comfyui.comfyui",
+      "typeVersion": 1,
+      "position": [
+        -752,
+        -16
+      ],
+      "credentials": {
+        "comfyUIApi": {
+          "id": "YOUR_COMFYUI_CREDENTIAL_ID",
+          "name": "ComfyUI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "data",
+        "options": {
+          "fileName": "image1.png",
+          "mimeType": "image/png"
+        }
+      },
+      "id": "51330172-d0a0-4e56-8f8e-c16edf7b2f69",
+      "name": "Convert to File",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -448,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "data",
+        "options": {
+          "fileName": "image2.png",
+          "mimeType": "image/png"
+        }
+      },
+      "id": "d7ae4089-fc87-45a6-8191-79526a531a90",
+      "name": "Convert to File1",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -448,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Set ComfyUI URL').first().json.comfyBaseUrl }}/upload/image",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "image",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "type",
+              "value": "input"
+            },
+            {
+              "name": "overwrite",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dd27abf8-8281-4670-bc74-74b59ee55d85",
+      "name": "Upload Image 1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -256,
+        -256
+      ],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "YOUR_BEARER_AUTH_CREDENTIAL_ID",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Set ComfyUI URL').first().json.comfyBaseUrl }}/upload/image",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "image",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "type",
+              "value": "input"
+            },
+            {
+              "name": "overwrite",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c369aa61-41a6-467e-8adb-6dd32618d0b1",
+      "name": "Upload Image 2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -256,
+        -16
+      ],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "YOUR_BEARER_AUTH_CREDENTIAL_ID",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "f8394aa4-2fb3-4bb1-af2c-8287e4ddf3c2",
+      "name": "Merge Images",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        16,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Este nó GARANTE que ambas as imagens foram recebidas antes de prosseguir\n// Ele verifica explicitamente se temos 2 entradas e só então passa adiante\nconst allInputs = $input.all();\n\n// Debug detalhado\nconsole.log('=== Wait for Both Images ===');\nconsole.log('Total de entradas recebidas:', allInputs.length);\nconsole.log('Esperado: 2 entradas');\n\n// Verificar status dos uploads anteriores\nconst upload1Status = $('Upload Image 1').first()?.json || {};\nconst upload2Status = $('Upload Image 2').first()?.json || {};\n\nconsole.log('Upload Image 1 status:', JSON.stringify(upload1Status, null, 2));\nconsole.log('Upload Image 2 status:', JSON.stringify(upload2Status, null, 2));\n\nif (allInputs.length > 0) {\n  console.log('Entrada 1:', JSON.stringify(allInputs[0]?.json || {}, null, 2));\n}\nif (allInputs.length > 1) {\n  console.log('Entrada 2:', JSON.stringify(allInputs[1]?.json || {}, null, 2));\n}\n\n// CRÍTICO: Se não temos 2 entradas, NÃO prosseguir\nif (allInputs.length < 2) {\n  const received = allInputs.map((item, idx) => {\n    const json = item.json || {};\n    return `  Entrada ${idx + 1}: name=${json.name || 'N/A'}, type=${json.type || 'N/A'}, subfolder=${json.subfolder || 'N/A'}`;\n  }).join('\\n');\n  \n  // Verificar qual upload está faltando\n  const hasImage1 = allInputs.some(item => {\n    const name = item.json?.name || '';\n    return name.includes('image1') || name.includes('start');\n  });\n  const hasImage2 = allInputs.some(item => {\n    const name = item.json?.name || '';\n    return name.includes('image2') || name.includes('end');\n  });\n  \n  let missingInfo = '';\n  if (!hasImage1) missingInfo += '\\n- Upload Image 1 NÃO foi recebido';\n  if (!hasImage2) missingInfo += '\\n- Upload Image 2 NÃO foi recebido';\n  \n  throw new Error(`ERRO: Merge Images não recebeu ambas as imagens!\\nRecebido: ${allInputs.length} de 2\\n\\nDetalhes recebidos:\\n${received}${missingInfo}\\n\\nAÇÃO NECESSÁRIA:\\n1. Verifique se Upload Image 1 foi executado (verifique o nó)\\n2. Verifique se Upload Image 2 foi executado (verifique o nó)\\n3. Verifique se ambos estão conectados ao Merge Images\\n4. Verifique se há erros nos nós de upload`);\n}\n\n// Se chegou aqui, temos 2 entradas - passar adiante\nconsole.log('✓ Ambas as imagens recebidas! Prosseguindo...');\nreturn allInputs.map(item => ({\n  json: item.json || {},\n  binary: item.binary || {}\n}));"
+      },
+      "id": "34a70cb3-974c-42f9-ba73-60be906a9ebb",
+      "name": "Wait for Both Images",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Este nó recebe input do Wait for Both Images, que GARANTIU ambas as imagens\n// Agora podemos processar com segurança - sabemos que temos exatamente 2 entradas\nconst allInputs = $input.all();\n\n// Debug: verificar o que está chegando\nconsole.log('Build Wan 2.2 Workflow - Total de entradas:', allInputs.length);\nif (allInputs.length > 0) {\n  console.log('Build Wan 2.2 Workflow - Primeira entrada:', JSON.stringify(allInputs[0]?.json || {}, null, 2));\n}\nif (allInputs.length > 1) {\n  console.log('Build Wan 2.2 Workflow - Segunda entrada:', JSON.stringify(allInputs[1]?.json || {}, null, 2));\n}\n\n// Verificar se temos 2 entradas (uma de cada upload)\nif (allInputs.length !== 2) {\n  const errorDetails = allInputs.map((item, index) => {\n    const json = item.json || {};\n    return `Entrada ${index + 1}: name=${json.name || 'N/A'}, type=${json.type || 'N/A'}, subfolder=${json.subfolder || 'N/A'}`;\n  }).join('; ');\n  throw new Error(`Esperado 2 imagens, recebido: ${allInputs.length}. ${errorDetails}. Verifique se ambos os uploads (Upload Image 1 e Upload Image 2) foram executados com sucesso.`);\n}\n\n// Identificar qual entrada veio de qual upload baseado na ordem ou conteúdo\nlet image1Response = allInputs[0].json || {};\nlet image2Response = allInputs[1].json || {};\n\n// Tentar identificar pelas entradas recebidas\n// Se tiver campo 'name' ou 'filename', usar isso\nfor (const item of allInputs) {\n  const data = item.json || {};\n  if (data.name || data.filename || (data.data && (data.data.name || data.data.filename))) {\n    const filename = data.name || data.filename || data.data?.name || data.data?.filename || '';\n    // Tentar identificar pela ordem ou nome do arquivo\n    if (filename.includes('image1') || filename.includes('start') || !image1Response.name) {\n      image1Response = data;\n    } else if (filename.includes('image2') || filename.includes('end') || !image2Response.name) {\n      image2Response = data;\n    }\n  }\n}\n\n// Capturar prompts e mensagem original do usuário\nconst userMessage = $('When chat message received').first()?.json?.message || $('AI Agent').first()?.json?.input || '';\nconst splitPromptsData = $('Split Prompts').first().json || {};\nconst promptStart = splitPromptsData.promptStart || userMessage || 'A dynamic scene';\nconst promptEnd = splitPromptsData.promptEnd || userMessage || 'A dynamic scene';\n\n// Criar prompt COMPLETO para o vídeo (não apenas o início)\nconst videoPrompt = userMessage + '. Scene starts with: ' + promptStart + '. Scene ends with: ' + promptEnd + '. Smooth animation, dynamic camera movement, cinematic transition, fluid motion, continuous action';\n\nconsole.log('=== BUILD WAN 2.2 - VIDEO PROMPT ===');\nconsole.log('User Message:', userMessage);\nconsole.log('Prompt Start:', promptStart);\nconsole.log('Prompt End:', promptEnd);\nconsole.log('VIDEO PROMPT (completo):', videoPrompt);\n\nfunction extractFilename(response) {\n  if (!response) return null;\n  if (response.name) return response.name;\n  if (response.filename) return response.filename;\n  if (response.data?.name) return response.data.name;\n  if (response.data?.filename) return response.data.filename;\n  if (typeof response === 'string') return response;\n  return null;\n}\n\nconst image1Name = extractFilename(image1Response) || 'image1.png';\nconst image2Name = extractFilename(image2Response) || 'image2.png';\n\n// Verificar se conseguiu extrair os nomes\nif (!image1Name || !image2Name) {\n  throw new Error('Não foi possível obter os nomes das imagens. image1: ' + image1Name + ', image2: ' + image2Name);\n}\n\nconst escapedPrompt = JSON.stringify(promptStart).slice(1, -1);\nconst escapedImage1 = JSON.stringify(image1Name).slice(1, -1);\nconst escapedImage2 = JSON.stringify(image2Name).slice(1, -1);\n\n// Workflow Wan 2.2 - EXATAMENTE igual ao de referência (video_wan2_2_14B_flf2v-api.json)\n// Construir o workflow como objeto JavaScript diretamente\nconst workflow = {\n  \"72\": { \"inputs\": { \"clip_name\": \"umt5_xxl_fp8_e4m3fn_scaled.safetensors\", \"type\": \"wan\", \"device\": \"default\" }, \"class_type\": \"CLIPLoader\", \"_meta\": { \"title\": \"Load CLIP\" } },\n  \"73\": { \"inputs\": { \"shift\": 8.000000000000002, \"model\": [\"76\", 0] }, \"class_type\": \"ModelSamplingSD3\", \"_meta\": { \"title\": \"ModelSamplingSD3\" } },\n  \"74\": { \"inputs\": { \"shift\": 8, \"model\": [\"77\", 0] }, \"class_type\": \"ModelSamplingSD3\", \"_meta\": { \"title\": \"ModelSamplingSD3\" } },\n  \"76\": { \"inputs\": { \"unet_name\": \"wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors\", \"weight_dtype\": \"default\" }, \"class_type\": \"UNETLoader\", \"_meta\": { \"title\": \"Load Diffusion Model\" } },\n  \"77\": { \"inputs\": { \"unet_name\": \"wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors\", \"weight_dtype\": \"default\" }, \"class_type\": \"UNETLoader\", \"_meta\": { \"title\": \"Load Diffusion Model\" } },\n  \"78\": { \"inputs\": { \"text\": \"色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走\", \"clip\": [\"72\", 0] }, \"class_type\": \"CLIPTextEncode\", \"_meta\": { \"title\": \"CLIP Text Encode (Negative Prompt)\" } },\n  \"79\": { \"inputs\": { \"vae_name\": \"wan_2.1_vae.safetensors\" }, \"class_type\": \"VAELoader\", \"_meta\": { \"title\": \"Load VAE\" } },\n  \"80\": { \"inputs\": { \"image\": image1Name }, \"class_type\": \"LoadImage\", \"_meta\": { \"title\": \"Load Image\" } },\n  \"81\": { \"inputs\": { \"width\": 640, \"height\": 640, \"length\": 81, \"batch_size\": 1, \"positive\": [\"90\", 0], \"negative\": [\"78\", 0], \"vae\": [\"79\", 0], \"start_image\": [\"80\", 0], \"end_image\": [\"89\", 0] }, \"class_type\": \"WanFirstLastFrameToVideo\", \"_meta\": { \"title\": \"WanFirstLastFrameToVideo\" } },\n  \"83\": { \"inputs\": { \"filename_prefix\": \"video/ComfyUI\", \"format\": \"auto\", \"codec\": \"auto\", \"video\": [\"86\", 0] }, \"class_type\": \"SaveVideo\", \"_meta\": { \"title\": \"Save Video\" } },\n  \"84\": { \"inputs\": { \"add_noise\": \"enable\", \"noise_seed\": 984937593540091, \"steps\": 20, \"cfg\": 4, \"sampler_name\": \"euler\", \"scheduler\": \"simple\", \"start_at_step\": 0, \"end_at_step\": 10, \"return_with_leftover_noise\": \"enable\", \"model\": [\"73\", 0], \"positive\": [\"81\", 0], \"negative\": [\"81\", 1], \"latent_image\": [\"81\", 2] }, \"class_type\": \"KSamplerAdvanced\", \"_meta\": { \"title\": \"KSampler (Advanced)\" } },\n  \"85\": { \"inputs\": { \"samples\": [\"87\", 0], \"vae\": [\"79\", 0] }, \"class_type\": \"VAEDecode\", \"_meta\": { \"title\": \"VAE Decode\" } },\n  \"86\": { \"inputs\": { \"fps\": 16, \"images\": [\"85\", 0] }, \"class_type\": \"CreateVideo\", \"_meta\": { \"title\": \"Create Video\" } },\n  \"87\": { \"inputs\": { \"add_noise\": \"disable\", \"noise_seed\": 0, \"steps\": 20, \"cfg\": 4, \"sampler_name\": \"euler\", \"scheduler\": \"simple\", \"start_at_step\": 10, \"end_at_step\": 10000, \"return_with_leftover_noise\": \"disable\", \"model\": [\"74\", 0], \"positive\": [\"81\", 0], \"negative\": [\"81\", 1], \"latent_image\": [\"84\", 0] }, \"class_type\": \"KSamplerAdvanced\", \"_meta\": { \"title\": \"KSampler (Advanced)\" } },\n  \"89\": { \"inputs\": { \"image\": image2Name }, \"class_type\": \"LoadImage\", \"_meta\": { \"title\": \"Load Image\" } },\n  \"90\": { \"inputs\": { \"text\": videoPrompt, \"clip\": [\"72\", 0] }, \"class_type\": \"CLIPTextEncode\", \"_meta\": { \"title\": \"CLIP Text Encode (Video Prompt)\" } }\n};\n\n// Retornar workflow como string JSON - o nó nativo do ComfyUI espera string JSON\nreturn [{ json: { workflow: JSON.stringify(workflow) } }];"
+      },
+      "id": "34e59626-4a9a-413c-a02d-baa99a9e0320",
+      "name": "Build Wan 2.2 Workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Set ComfyUI URL').first().json.comfyBaseUrl }}/prompt",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ prompt: JSON.parse($json.workflow), client_id: 'n8n-' + Date.now() }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "02f56fab-2adb-4d79-ae64-d722c1a27bd2",
+      "name": "Send Prompt to ComfyUI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        -128
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "YOUR_BEARER_AUTH_CREDENTIAL_ID",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Inicializar polling - passar prompt_id e inicializar contador\nconst item = $input.first();\nconst promptResponse = item.json || {};\nconst promptId = promptResponse.prompt_id;\n\nif (!promptId) {\n  throw new Error('Não foi possível obter prompt_id do ComfyUI. Resposta: ' + JSON.stringify(promptResponse));\n}\n\nreturn [{\n  json: {\n    prompt_id: promptId,\n    comfyBaseUrl: $('Set ComfyUI URL').first().json.comfyBaseUrl,\n    comfyApiToken: $('Set ComfyUI URL').first().json.comfyApiToken,\n    attempt: 0,\n    maxAttempts: 60 // 10 minutos máximo (60 * 10s = 600 segundos)\n  }\n}];"
+      },
+      "id": "924e1e7d-a80d-4e87-8e20-5752df81deea",
+      "name": "Initialize Polling",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 10,
+        "unit": "seconds"
+      },
+      "id": "04913d8f-c3ee-4d74-87ac-199a9de08d5c",
+      "name": "Wait 10 Seconds",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        1328,
+        -128
+      ],
+      "webhookId": "0fedcfdc-81d3-4f02-b541-5ca9d705ec72"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.comfyBaseUrl || $('Set ComfyUI URL').first().json.comfyBaseUrl }}/history/={{ $json.prompt_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "0d83eac0-afbf-4d6d-b30f-0960a09212bf",
+      "name": "Check History",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1552,
+        -48
+      ],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "YOUR_BEARER_AUTH_CREDENTIAL_ID",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst history = item.json || {};\n\nlet previousData = {};\ntry {\n  previousData = $('Wait 10 Seconds').first().json || {};\n} catch (e) {\n  try {\n    previousData = $('Initialize Polling').first().json || {};\n  } catch (e2) {\n    previousData = {\n      comfyBaseUrl: $('Set ComfyUI URL').first().json.comfyBaseUrl,\n      comfyApiToken: $('Set ComfyUI URL').first().json.comfyApiToken\n    };\n  }\n}\n\nconst promptId = previousData.prompt_id || Object.keys(history)[0];\nconst attempt = (previousData.attempt || 0) + 1;\nconst maxAttempts = previousData.maxAttempts || 60;\nconst comfyBaseUrl = previousData.comfyBaseUrl || $('Set ComfyUI URL').first().json.comfyBaseUrl;\nconst comfyApiToken = previousData.comfyApiToken || $('Set ComfyUI URL').first().json.comfyApiToken;\n\nconsole.log(`Tentativa ${attempt}/${maxAttempts} - Prompt ID: ${promptId}`);\n\nif (!promptId || !history[promptId]) {\n  if (attempt >= maxAttempts) {\n    throw new Error('Timeout: Video nao encontrado apos ' + attempt + ' tentativas');\n  }\n  return [{ json: { prompt_id: promptId, comfyBaseUrl: comfyBaseUrl, comfyApiToken: comfyApiToken, attempt: attempt, maxAttempts: maxAttempts, video_found: false } }];\n}\n\nconst execution = history[promptId];\nconst outputs = execution.outputs || {};\n\nfunction isVideoFile(f) {\n  if (!f) return false;\n  const l = f.toLowerCase();\n  return l.endsWith('.mp4') || l.endsWith('.webm') || l.endsWith('.avi') || l.endsWith('.mov') || l.endsWith('.mkv');\n}\n\nfunction buildUrl(f, s, t) {\n  return comfyBaseUrl + '/view?filename=' + encodeURIComponent(f) + '&subfolder=' + encodeURIComponent(s || 'video') + '&type=' + encodeURIComponent(t || 'output');\n}\n\nlet videoResult = null;\n\nfor (const nodeId in outputs) {\n  const nodeOutput = outputs[nodeId];\n  \n  if (nodeOutput.videos && Array.isArray(nodeOutput.videos)) {\n    for (const v of nodeOutput.videos) {\n      const fn = v.filename || v.name || v;\n      if (isVideoFile(fn)) {\n        videoResult = { prompt_id: promptId, node_id: nodeId, filename: fn, subfolder: v.subfolder || 'video', type: v.type || 'output', video_url: buildUrl(fn, v.subfolder || 'video', v.type || 'output'), video_found: true, attempt: attempt };\n        break;\n      }\n    }\n  }\n  if (videoResult) break;\n}\n\nif (!videoResult) {\n  const statusCode = execution.status?.status_code;\n  const statusStr = execution.status?.status_str;\n  const isComplete = statusCode === 2 || statusStr === 'success' || execution.status?.completed === true;\n  \n  console.log('Status code:', statusCode, 'Status str:', statusStr, 'Complete:', isComplete);\n  \n  if (isComplete) {\n    console.log('Execucao completa ou tentativa >= 2. Tentando usar filename do historico ou padrao.');\n    \n    let guessedFilename = null;\n    \n    if (execution.outputs) {\n      for (const nodeId in execution.outputs) {\n        const out = execution.outputs[nodeId];\n        if (out && typeof out === 'object') {\n          const allKeys = Object.keys(out);\n          console.log('No ' + nodeId + ' tem chaves:', allKeys.join(', '));\n          \n          for (const key of allKeys) {\n            const val = out[key];\n            if (val && typeof val === 'string' && val.includes('.mp4')) {\n              guessedFilename = val;\n              console.log('ENCONTRADO string com .mp4:', guessedFilename);\n              break;\n            }\n          }\n          if (guessedFilename) break;\n        }\n      }\n    }\n    \n    if (!guessedFilename) {\n      for (let i = 20; i >= 1; i--) {\n        const testNum = String(i).padStart(5, '0');\n        guessedFilename = 'ComfyUI_' + testNum + '.mp4';\n      }\n      console.log('Nenhum filename encontrado. Usando ultimo padrao:', guessedFilename);\n    }\n    \n    videoResult = { prompt_id: promptId, filename: guessedFilename, subfolder: 'video', type: 'output', video_url: buildUrl(guessedFilename, 'video', 'output'), video_found: true, attempt: attempt, note: 'Filename assumido ou extraido do historico' };\n  }\n}\n\nconsole.log('\\n=== RESULTADO DA VERIFICACAO ===');\nconsole.log('videoResult existe?', !!videoResult);\nif (videoResult) {\n  console.log('videoResult.video_url:', videoResult.video_url);\n  console.log('videoResult.filename:', videoResult.filename);\n}\n\nif (!videoResult) {\n  console.log('Video NAO encontrado. Retornando pela SAIDA 2 (volta para Wait 10 Seconds)');\n  if (attempt >= maxAttempts) {\n    throw new Error('Timeout: Video nao encontrado apos ' + attempt + ' tentativas');\n  }\n  return [null, { json: { prompt_id: promptId, comfyBaseUrl: comfyBaseUrl, comfyApiToken: comfyApiToken, attempt: attempt, maxAttempts: maxAttempts } }];\n}\n\nconsole.log('*** VIDEO ENCONTRADO! ***');\nconsole.log('Filename:', videoResult.filename);\nconsole.log('Retornando pela SAIDA 1 (vai para Download Video)');\nconsole.log('URL:', videoResult.video_url);\n\nreturn [{ json: videoResult }, null];"
+      },
+      "id": "94332e2b-2832-469d-908a-547975158fb4",
+      "name": "Extract Video Info",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1776,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-video-found",
+              "leftValue": "={{ $json.video_found }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-if-found",
+      "name": "Check if Video Found",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.video_url || 'https://error.url' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "redirect": {
+            "redirect": {
+              "followRedirects": true
+            }
+          }
+        }
+      },
+      "id": "12c046d1-9718-4f43-9f8f-8fbdf78e16d9",
+      "name": "Download Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2224,
+        -128
+      ],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "YOUR_BEARER_AUTH_CREDENTIAL_ID",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -2064,
+        144
+      ],
+      "id": "2750ebf3-828f-4492-9f21-a5fe38dcff19",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "YOUR_GROQ_API_CREDENTIAL_ID",
+          "name": "Groq API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -2240,
+        144
+      ],
+      "id": "277fe606-dc45-4f68-917e-6febe040958b",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "YOUR_GEMINI_API_CREDENTIAL_ID",
+          "name": "Google Gemini API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+    },
+          {
+            "node": "Set ComfyUI URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Split Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Prompts": {
+      "main": [
+        [
+          {
+            "node": "Build Workflow Image 1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Workflow Image 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Workflow Image 1": {
+      "main": [
+        [
+          {
+            "node": "ComfyUI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Workflow Image 2": {
+      "main": [
+        [
+          {
+            "node": "ComfyUI1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ComfyUI": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ComfyUI1": {
+      "main": [
+        [
+          {
+            "node": "Convert to File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Upload Image 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File1": {
+      "main": [
+        [
+          {
+            "node": "Upload Image 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Image 1": {
+      "main": [
+        [
+          {
+            "node": "Merge Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Image 2": {
+      "main": [
+        [
+          {
+            "node": "Merge Images",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Images": {
+      "main": [
+        [
+          {
+            "node": "Wait for Both Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Both Images": {
+      "main": [
+        [
+          {
+            "node": "Build Wan 2.2 Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Wan 2.2 Workflow": {
+      "main": [
+        [
+          {
+            "node": "Send Prompt to ComfyUI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Prompt to ComfyUI": {
+      "main": [
+        [
+          {
+            "node": "Initialize Polling",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Polling": {
+      "main": [
+        [
+          {
+            "node": "Wait 10 Seconds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 10 Seconds": {
+      "main": [
+        [
+          {
+            "node": "Check History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check History": {
+      "main": [
+        [
+          {
+            "node": "Extract Video Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Video Info": {
+      "main": [
+        [
+          {
+            "node": "Check if Video Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Video Found": {
+      "main": [
+        [
+          {
+            "node": "Download Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 10 Seconds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d06d45ff-15e0-4d08-a634-1e55e08c6888",
+  "meta": {
+    "instanceId": "237bd2898f1725f237d16d6d677ef01102177f245fc1776da222e7ef722096fd"
+  },
+  "id": "Z8yYEqlnYxCNeJGD",
+  "tags": []
+}
