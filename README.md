@@ -1,5 +1,8 @@
 # n8n ComfyUI Video Generation Workflow
 
+<img width="2268" height="393" alt="image" src="https://github.com/user-attachments/assets/c52d4283-976f-4158-89b9-aa7a23e181a1" />
+
+
 Automated n8n workflow for video generation using ComfyUI with WAN 2.2 model, integrating Flux image generation and video creation from two sequential images.
 
 ## 🎯 Overview
