@@ -31,6 +31,9 @@ This workflow automates the complete video generation process:
 
 > **Note**: This project was developed and tested using a **RTX 4090 24GB rented on [vast.ai](https://cloud.vast.ai/?ref_id=350820)**. Using the referral link helps support this project and offers excellent cost-effectiveness compared to services like VEO 3.1, Runway Gen-3, Sora 2, etc.
 
+<img width="817" height="114" alt="image" src="https://github.com/user-attachments/assets/574b2ef9-ee9d-48ed-9619-304a5a7154ba" />
+
+
 ### FP8 Models
 The workflow uses FP8 format models, which are more memory efficient:
 - `flux1-krea-dev_fp8_scaled.safetensors` - Image generation
