@@ -26,7 +26,7 @@ This workflow automates the complete video generation process:
 - **Storage**: 200GB+ of free space
 - **RAM**: 32GB+
 
-> **Note**: This project was developed and tested using a **RTX 4090 24GB rented on [vast.ai](https://cloud.vast.ai/?ref_id=350820)**, which offers excellent cost-effectiveness compared to services like VEO 3.1, Runway Gen-3, Sora 2, etc.
+> **Note**: This project was developed and tested using a **RTX 4090 24GB rented on [vast.ai](https://cloud.vast.ai/?ref_id=350820)**. Using the referral link helps support this project and offers excellent cost-effectiveness compared to services like VEO 3.1, Runway Gen-3, Sora 2, etc.
 
 ### FP8 Models
 The workflow uses FP8 format models, which are more memory efficient:
@@ -254,15 +254,17 @@ This project is licensed under the MIT License.
 - [n8n Documentation](https://docs.n8n.io/)
 - [ComfyUI GitHub](https://github.com/comfyanonymous/ComfyUI)
 - [WAN 2.2 Model](https://github.com/tencent-ailab/IP-Adapter)
-- [vast.ai - Rent GPUs](https://cloud.vast.ai/?ref_id=350820)
+- [vast.ai - Rent GPUs (Referral Link)](https://cloud.vast.ai/?ref_id=350820)
 
 ## 💰 Cost-Benefit
 
-Using a rented GPU on vast.ai (like RTX 4090 24GB) offers:
+Using a rented GPU on [vast.ai](https://cloud.vast.ai/?ref_id=350820) (like RTX 4090 24GB) offers:
 - **Much lower cost** than services like VEO 3.1, Runway Gen-3, Sora 2
 - **Full control** over infrastructure
 - **Flexibility** to adjust configurations
 - **Professional performance** at an affordable price
+
+💡 **Support this project**: Use our [referral link](https://cloud.vast.ai/?ref_id=350820) when renting GPUs on vast.ai!
 
 ---
 
