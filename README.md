@@ -60,7 +60,7 @@ These FP8 models allow GPUs with 12GB VRAM (like RTX 3060) to run the complete w
 
 ### 1. Setup ComfyUI Infrastructure
 
-Before using this workflow, you need to set up ComfyUI with Flux and WAN 2.2 models. We provide automated installation scripts:
+Before using this workflow, you need to set up ComfyUI with Flux and WAN 2.2 models. Follow the automated installation scripts:
 
 **Option A: Using vast.ai (Recommended)**
 - See the [ComfyUI Flux & WAN 2.2 Setup on vast.ai](https://github.com/enemy100/comfyui-flux-wan-vast-ai) repository for complete installation instructions
